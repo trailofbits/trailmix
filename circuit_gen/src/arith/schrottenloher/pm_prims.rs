@@ -852,6 +852,7 @@ mod tests {
 
         let q = secp256k1_q();
         let mut circ = Circuit::new();
+        circ.set_max_qubit_peak(780);
         let y_reg = circ.alloc_qreg_bits("yreg", 257);
         let out_reg = circ.alloc_qreg_bits("outreg", 257);
         let ctrl = circ.alloc_qreg("ctrl");

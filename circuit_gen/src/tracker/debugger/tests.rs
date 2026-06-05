@@ -147,7 +147,7 @@ fn differential_one_seed() {
     // by the time destroy_sim runs (alloc_qreg_bits qregs would
     // otherwise hold strong Rcs into the circuit).
     let mut d = Debugger::attach(&mut c);
-    d.goto(c.ops.len());
+    d.goto(d.num_ops()); // c.ops was moved into the debugger by attach; use d.num_ops()
     let total_q = c.total_qubits() as usize;
     let total_b_count = c.total_bits() as usize;
     // Convert to u64 phase before destroy.
@@ -215,7 +215,7 @@ fn debugger_captures_initial_state_before_any_gate() {
     c.cx(&a, &y); // any further gate
 
     let mut d = Debugger::attach(&mut c);
-    d.goto(c.ops.len());
+    d.goto(d.num_ops()); // c.ops was moved into the debugger by attach; use d.num_ops()
     let total_q = c.total_qubits() as usize;
     let (sim, _) = c.destroy_sim(vec![y, a]);
     for q in 0..total_q {
@@ -246,7 +246,7 @@ fn round_trip_step_back() {
     // Compute end-state values via debugger BEFORE destroy_sim
     // (debugger holds a snapshot independent of the live sim).
     let mut d = Debugger::attach(&mut c);
-    d.goto(c.ops.len());
+    d.goto(d.num_ops()); // c.ops was moved into the debugger by attach; use d.num_ops()
     let end_phase = d.phase();
     let end_q_a = (d.qubit(a_id) & 1) as u8;
     // Cursor at end by default.
@@ -518,7 +518,7 @@ fn profiler_supports_exact_prefix_current_and_split_queries() {
     c.x(&b);
 
     let mut d = Debugger::attach(&mut c);
-    d.goto(c.ops.len());
+    d.goto(d.num_ops()); // c.ops was moved into the debugger by attach; use d.num_ops()
 
     let exact = d.print_profile(&["whole", "exact", "root/a/x"]);
     assert!(exact.contains("root/a/x"), "{}", exact);
@@ -536,7 +536,8 @@ fn profiler_supports_exact_prefix_current_and_split_queries() {
     assert!(split.contains("root/b"), "{}", split);
 
     let tof = d.print_profile(&["whole", "tof", "top", "5"]);
-    assert!(tof.contains("total_tof=128"), "{}", tof);
+    // 2 CCX in the circuit; Toffoli count is a per-circuit property, not ×64 shots.
+    assert!(tof.contains("total_tof=2"), "{}", tof);
     let _ = c.destroy_sim(vec![a, b, t]);
 }
 
@@ -573,7 +574,7 @@ fn cursor_profiler_tracks_step_back_and_goto() {
     assert!(back.contains("matched_ops=1"), "{}", back);
     assert!(!back.contains("matched_ops=2"), "{}", back);
 
-    d.goto(c.ops.len());
+    d.goto(d.num_ops()); // c.ops was moved into the debugger by attach; use d.num_ops()
     let end = d.print_profile(&["cursor", "split", "root"]);
     assert!(end.contains("root/a"), "{}", end);
     assert!(end.contains("root/b"), "{}", end);

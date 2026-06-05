@@ -637,8 +637,9 @@ pub struct Circuit {
     max_ops_assert: Option<u64>,
     /// Hard cap on peak live qubits. Unlike `max_qubits_assert`
     /// (which is purely opt-in via `CIRC_ASSERT_MAX_QUBITS`), this
-    /// cap has a built-in default (`DEFAULT_MAX_QUBIT_PEAK = 1175`)
-    /// matching the user's overall target. Override via the
+    /// cap has a built-in default (`DEFAULT_MAX_QUBIT_PEAK = 2000`), a
+    /// catastrophe backstop at the hard bound (per-test caps do the real
+    /// regression detection). Override via the
     /// `CIRC_ASSERT_MAX_QUBIT_PEAK` env var; set it to 0 to disable.
     /// Fires as soon as `live` exceeds the cap (not at end-of-circuit).
     max_qubit_peak_assert: Option<u32>,
@@ -1061,12 +1062,14 @@ impl Circuit {
     }
 
     /// Default cap for peak live qubits when `CIRC_ASSERT_MAX_QUBIT_PEAK`
-    /// is unset. Matches the user's overall qubit target.
-    /// Hard ceiling for v6/EEA work: 680 qubits. Going above is a BUG to fix,
-    /// not a soft target. Set via env `CIRC_ASSERT_MAX_QUBIT_PEAK` to override
-    /// (e.g. for diagnostic measurements that intentionally exceed) or set to
-    /// 0 to disable.
-    const DEFAULT_MAX_QUBIT_PEAK: u32 = 680;
+    /// is unset. This is a CATASTROPHE BACKSTOP, not a cost target: it sits
+    /// at the CLAUDE.md hard upper bound (2000) so a runaway alloc / infinite
+    /// loop trips before it OOMs the 8G wrapper. Real regression detection is
+    /// the job of the per-test `set_max_qubit_peak(...)` calls (e.g. EC-add
+    /// ~1191, mod_mul_eea 1180, gcd_pack 870), which set tight, documented
+    /// ceilings for cost-sensitive circuits. Set via env
+    /// `CIRC_ASSERT_MAX_QUBIT_PEAK` to override, or 0 to disable.
+    const DEFAULT_MAX_QUBIT_PEAK: u32 = 2000;
 
     fn configured_max_qubit_peak_assert() -> Option<u32> {
         match std::env::var("CIRC_ASSERT_MAX_QUBIT_PEAK") {

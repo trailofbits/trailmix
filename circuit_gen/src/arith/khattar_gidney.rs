@@ -1057,7 +1057,7 @@ fn kg_get_layers_for_prefix_and<'a>(
 /// USAGE (matches the conditionally-clean construction — body is
 /// invoked layer-by-layer in DESCENDING order, interleaved with the
 /// per-layer reverse-ops as in `inc_khattar_gidney_refs_inner`):
-/// ```ignore
+/// ```text
 /// let anc_owned = circ.alloc_qreg_bits("kg_pa", kg_prefix_ancilla_count(n));
 /// let anc_refs: Vec<&QReg> = anc_owned.iter().collect();
 /// let q_refs: Vec<&QReg> = q.iter().collect();

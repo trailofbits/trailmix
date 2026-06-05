@@ -88,7 +88,8 @@ fn main() {
     let total = n + u_padding(n);
 
     let mut circ = Circuit::new();
-    // EC-add peaks at 1173 (apply_bv); the default 680 ceiling would trip.
+    // EC-add peaks at 1173 (apply_bv); set a tight 1178 cap here (the 2000
+    // default is only a catastrophe backstop, not a regression detector).
     circ.set_max_qubit_peak(1178);
     let mut x2: Vec<QReg> = (0..total)
         .map(|i| circ.alloc_qreg(&format!("x2[{i}]")))

@@ -369,6 +369,7 @@ mod tests {
         }
 
         let mut circ = crate::circuit::Circuit::new();
+        circ.set_max_qubit_peak(1180);
         let mut x_full = circ.alloc_qreg_bits("x_full", total);
         let y_full = circ.alloc_qreg_bits("y_full", n + 1);
 

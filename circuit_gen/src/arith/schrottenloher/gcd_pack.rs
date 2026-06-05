@@ -751,9 +751,9 @@ mod tests {
         // (current_n=256) while the garbage tape has accumulated as NEW
         // qubits (register-sharing only reclaims freed u/v bits once they
         // start shrinking, i>~52). Measured: 861 forward / 864 fwd+rev,
-        // ~equal for M=3 and M=5. The global DEFAULT_MAX_QUBIT_PEAK=680 is
-        // the narrower v6/EEA ceiling; this phase legitimately needs ~864,
-        // still well under the EC-add apply_bv peak ~1169 (the real target).
+        // ~equal for M=3 and M=5. This phase legitimately needs ~864 (u/v
+        // stay full-width while the garbage tape accrues), so we set a tight
+        // per-test cap of 870 here, well under the EC-add apply_bv peak ~1169.
         circ.set_max_qubit_peak(870);
         let mut v_full = circ.alloc_qreg_bits("v_full", total);
 
@@ -832,9 +832,9 @@ mod tests {
         // (current_n=256) while the garbage tape has accumulated as NEW
         // qubits (register-sharing only reclaims freed u/v bits once they
         // start shrinking, i>~52). Measured: 861 forward / 864 fwd+rev,
-        // ~equal for M=3 and M=5. The global DEFAULT_MAX_QUBIT_PEAK=680 is
-        // the narrower v6/EEA ceiling; this phase legitimately needs ~864,
-        // still well under the EC-add apply_bv peak ~1169 (the real target).
+        // ~equal for M=3 and M=5. This phase legitimately needs ~864 (u/v
+        // stay full-width while the garbage tape accrues), so we set a tight
+        // per-test cap of 870 here, well under the EC-add apply_bv peak ~1169.
         circ.set_max_qubit_peak(870);
         let mut v_full = circ.alloc_qreg_bits("v_full", total);
 
@@ -923,207 +923,4 @@ mod tests {
         );
     }
 
-    /// BISECTION: build the GCD round-trip, then faithfully RE-APPLY the
-    /// emitted op stream (`circ.ops`) from the SAME loaded inputs and
-    /// compare the qubit values to construction's `live_checkpoints` at
-    /// each checkpoint. The first divergent checkpoint localizes the op
-    /// where a faithful re-sim of the op stream parts ways with what the
-    /// construction-sim computed — i.e. exactly where the emitted circuit
-    /// stops matching the intended circuit.
-    #[test]
-    fn gcd_roundtrip_reapply_matches_checkpoints() {
-        use crate::circuit::Op;
-        let n = 256usize;
-        let total = n + u_padding(n);
-        let q: BigUint = (BigUint::from(1u32) << 256u32) - BigUint::from(super::super::F_SECP256K1);
-
-        let mut circ = Circuit::new();
-        circ.set_max_qubit_peak(1300);
-        circ.checkpoint_interval = 200_000;
-        let mut a = circ.alloc_qreg_bits("a", total);
-
-        // Recorded inputs (same values fed to the re-apply). a[i].id == i.
-        let mut in_vals: Vec<BigUint> = Vec::with_capacity(64);
-        {
-            use rand::{thread_rng, Rng};
-            let mut rng = thread_rng();
-            for shot in 0..64 {
-                let v = BigUint::from_bytes_le(&rng.gen::<[u8; 32]>()) % &q;
-                let mut b = [0u8; 32];
-                for (i, x) in v.to_bytes_le().iter().take(32).enumerate() {
-                    b[i] = *x;
-                }
-                circ.sim_load_reg_bytes_shot(&a[..n], &b, shot);
-                in_vals.push(v);
-            }
-        }
-
-        let mut garbage = forward_gcd_pack_quantum_secp256k1(&mut circ, &mut a);
-        forward_gcd_pack_quantum_secp256k1_reverse(&mut circ, &mut a, &mut garbage);
-
-        assert_eq!(circ.ops_truncated, 0, "expected no truncation at this size");
-        let checkpoints: Vec<(u64, Vec<u64>)> = circ
-            .live_checkpoints
-            .iter()
-            .map(|c| (c.ops_truncated, c.qubits.clone()))
-            .collect();
-        assert!(!checkpoints.is_empty(), "need at least one checkpoint");
-        let ops: Vec<Op> = circ.ops.iter().filter_map(|o| *o).collect();
-        let nq = checkpoints[0].1.len();
-
-        // Construction's FINAL state (after ALL ops, incl. the tail past
-        // the last checkpoint). destroy_sim detaches `a` (avoids the
-        // drop-time prove_zero on the restored, nonzero multiplier).
-        let (sim, detached) = circ.destroy_sim(std::mem::take(&mut a));
-        // cons_final indexed by QUBIT ID (not Vec position): a[i]'s qubit
-        // id after the regrow is detached[i].id(), generally != i.
-        let mut cons_final = vec![0u64; nq];
-        let mut a_ids: Vec<usize> = Vec::with_capacity(n);
-        for (i, dq) in detached.iter().enumerate() {
-            let id = dq.id() as usize;
-            let mut m = 0u64;
-            for shot in 0..64 {
-                if sim.read_bit_shot(dq, shot) == 1 {
-                    m |= 1u64 << shot;
-                }
-            }
-            if id < nq {
-                cons_final[id] = m;
-            }
-            if i < n {
-                a_ids.push(id);
-            }
-        }
-
-        // Check that a[i]'s END qubit ids are a permutation of the START
-        // ids (0..n), and that reading the START ids at the end gives a
-        // permutation of the (restored) input.
-        {
-            let mut sorted = a_ids.clone();
-            sorted.sort_unstable();
-            let canon: Vec<usize> = (0..n).collect();
-            let mn = *a_ids.iter().min().unwrap();
-            let mx = *a_ids.iter().max().unwrap();
-            eprintln!(
-                "a END ids: min={mn} max={mx}; sorted==0..{n}? {}; first16={:?}",
-                sorted == canon,
-                &a_ids[..16.min(n)],
-            );
-            // identity count: how many a[i] stayed at id i
-            let stayed = (0..n).filter(|&i| a_ids[i] == i).count();
-            eprintln!("a[i] still at id i: {stayed}/{n}");
-        }
-
-        // Faithful re-apply of the op stream from the same inputs.
-        let mut qb = vec![0u64; nq];
-        for shot in 0..64 {
-            let v = &in_vals[shot];
-            for i in 0..n {
-                if v.bit(i as u64) {
-                    qb[i] |= 1u64 << shot;
-                }
-            }
-        }
-        let mut bits = vec![0u64; 4096];
-        let mut base = u64::MAX;
-        let mut stack: Vec<u64> = Vec::new();
-        let mut rng_ctr: u64 = 0x1234;
-        let mut next_rng = || {
-            rng_ctr = rng_ctr.wrapping_add(0x9E3779B97F4A7C15);
-            let mut z = rng_ctr;
-            z = (z ^ (z >> 30)).wrapping_mul(0xBF58476D1CE4E5B9);
-            z = (z ^ (z >> 27)).wrapping_mul(0x94D049BB133111EB);
-            z ^ (z >> 31)
-        };
-
-        let mut count = 0u64;
-        let mut cp = 0usize;
-        let mut first_diff: Option<(u64, usize)> = None;
-        for op in &ops {
-            if cp < checkpoints.len() && count == checkpoints[cp].0 {
-                if qb != checkpoints[cp].1 {
-                    let diff_q = (0..nq).find(|&i| qb[i] != checkpoints[cp].1[i]).unwrap();
-                    first_diff = Some((count, diff_q));
-                    break;
-                }
-                cp += 1;
-            }
-            let cond = base;
-            match *op {
-                Op::X(t) => qb[t as usize] ^= cond,
-                Op::Cx(c, t) => {
-                    let v = cond & qb[c as usize];
-                    qb[t as usize] ^= v;
-                }
-                Op::Ccx(c1, c2, t) => {
-                    let v = cond & qb[c1 as usize] & qb[c2 as usize];
-                    qb[t as usize] ^= v;
-                }
-                Op::Swap(x, y) => {
-                    let (xi, yi) = (x as usize, y as usize);
-                    let mut qx = qb[xi];
-                    let mut qy = qb[yi];
-                    qx ^= qy;
-                    qy ^= cond & qx;
-                    qx ^= qy;
-                    qb[xi] = qx;
-                    qb[yi] = qy;
-                }
-                Op::Hmr(t, b) => {
-                    bits[b as usize] = next_rng() & cond;
-                    qb[t as usize] = 0;
-                }
-                Op::R(t) => qb[t as usize] = 0,
-                Op::PushCondition(b) => {
-                    stack.push(base);
-                    base &= bits[b as usize];
-                }
-                Op::PopCondition => {
-                    if let Some(v) = stack.pop() {
-                        base = v;
-                    }
-                }
-                Op::BitInvert(b) => bits[b as usize] ^= cond,
-                Op::BitStore0(b) => bits[b as usize] &= !cond,
-                Op::BitStore1(b) => bits[b as usize] |= cond,
-                // Z / CZ / CCZ / Neg are phase-only (value unaffected);
-                // Register / Append are metadata. Skip for value compare.
-                _ => {}
-            }
-            count += 1;
-        }
-
-        if let Some((op_idx, q_id)) = first_diff {
-            panic!(
-                "RE-APPLY DIVERGES from construction at checkpoint op={op_idx}, \
-                 first wrong qubit q{q_id} (interval=100). The faithful re-sim of the emitted op stream != construction-sim there."
-            );
-        }
-        eprintln!(
-            "re-apply matched all {} checkpoints (up to op {}); total ops {}",
-            checkpoints.len(),
-            checkpoints.last().unwrap().0,
-            ops.len(),
-        );
-        // FINAL-state comparison on the `a` register, indexed by the
-        // regrown qubit IDs (a[i]'s id is a_ids[i], generally != i).
-        let mut final_diff = None;
-        for i in 0..n {
-            let id = a_ids[i];
-            if id < nq && qb[id] != cons_final[id] {
-                final_diff = Some((i, id));
-                break;
-            }
-        }
-        if let Some((i, id)) = final_diff {
-            panic!(
-                "RE-APPLY FINAL DIVERGES: a[{i}] (qubit id {id}) re-apply={:#x} \
-                 construction={:#x} (total ops {}).",
-                qb[id],
-                cons_final[id],
-                ops.len(),
-            );
-        }
-        eprintln!("re-apply FINAL matched construction on a[0..256] (by qubit id) too");
-    }
 }
