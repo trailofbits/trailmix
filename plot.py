@@ -127,8 +127,8 @@ def render(path, title, *, logscale, xlim, ylim, label_ours, star_offsets=None,
     ax.set_ylim(ylo, yhi)
     ax.grid(True, which="both", color="#e8e8e8", linewidth=0.6, zorder=0)
     ax.set_axisbelow(True)
-    ax.set_xlabel("Toffoli gates (full 256-bit ECDLP)", fontsize=12)
-    ax.set_ylabel("Logical qubits", fontsize=12)
+    ax.set_xlabel("Toffoli gates, full 256-bit ECDLP (lower is better)", fontsize=12)
+    ax.set_ylabel("Logical qubits (lower is better)", fontsize=12)
     ax.set_title(title, fontsize=13, pad=12)
     if logscale:
         ax.xaxis.set_major_formatter(ticker.FuncFormatter(gate_formatter))
@@ -161,7 +161,7 @@ def render(path, title, *, logscale, xlim, ylim, label_ours, star_offsets=None,
                    s=size, color=color, marker=marker, zorder=6, label=label,
                    edgecolors="white", linewidths=0.5)
 
-    plot_group(GOOGLE, BLUE, "s", "Babbush et al. '26", 30)
+    plot_group(GOOGLE, BLUE, "s", "Babbush et al. '26 (Google)", 30)
     plot_group(SCHROTTENLOHER, GREEN, "D", "Schrottenloher '26", 26)
     plot_group(OURS, ORANGE, "*", "This work", 90)
 
