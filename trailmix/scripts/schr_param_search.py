@@ -14,7 +14,7 @@ every formula). The GCD-non-convergence rate is MEASURED empirically by
 porting the classical GCD; the +f-window truncation rate is the analytic
 2^-padding model, validated empirically (see schr_param_model.reduction_fail_rate).
 
-Run from circuit_gen/:
+Run from trailmix/:
     python3 scripts/schr_param_search.py            # fast (default trials)
     python3 scripts/schr_param_search.py --full     # high-trial GCD measurement
     python3 scripts/schr_param_search.py --trials 5000000

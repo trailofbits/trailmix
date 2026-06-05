@@ -1,10 +1,10 @@
 [package]
-name = "circuit_gen"
+name = "trailmix"
 version = "0.1.0"
 edition = "2021"
 
 [lib]
-name = "circuit_gen"
+name = "trailmix"
 path = "src/lib.rs"
 
 # Binaries are auto-discovered from src/bin/.

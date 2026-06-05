@@ -1,6 +1,6 @@
-# circuit_gen -- Overview
+# trailmix -- Overview
 
-`circuit_gen` is a self-contained toolchain for synthesizing, simulating,
+`trailmix` is a self-contained toolchain for synthesizing, simulating,
 verifying, debugging, and profiling **reversible quantum circuits** -- built to
 drive down the Toffoli x qubit cost of secp256k1 (plus Curve25519 / SM2 /
 Brainpool) elliptic-curve point addition against Google's kickmix (kmx) scoring
@@ -97,7 +97,7 @@ and symbols.
 ## circuit.rs Runtime Features
 
 Source file:
-- `circuit_gen/src/circuit.rs` (~4800 lines)
+- `trailmix/src/circuit.rs` (~4800 lines)
 
 ---
 

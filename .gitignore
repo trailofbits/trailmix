@@ -17,8 +17,8 @@ proofs/
 *.swo
 
 # Claude Code harness / Codex markers
-circuit_gen/.claude/
-circuit_gen/.codex
+trailmix/.claude/
+trailmix/.codex
 
 **/.claude/
 **/.codex/
@@ -29,6 +29,6 @@ circuit_gen/.codex
 
 # Internal scratchpads and tool state (never ship)
 **/claude-notes.md
-circuit_gen/CLAUDE.md
-circuit_gen/src/ec/curves/PORT_PLAN.md
+trailmix/CLAUDE.md
+trailmix/src/ec/curves/PORT_PLAN.md
 *.compact-state.json

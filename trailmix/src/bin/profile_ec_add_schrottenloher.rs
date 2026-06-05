@@ -5,13 +5,13 @@
 //! save) and at what qubit peak the current packed version sits.
 
 use alloy_primitives::U256;
-use circuit_gen::arith::schrottenloher::gcd_pack::u_padding;
-use circuit_gen::arith::schrottenloher::pointadd::{
+use trailmix::arith::schrottenloher::gcd_pack::u_padding;
+use trailmix::arith::schrottenloher::pointadd::{
     ec_add_inplace_schrottenloher_jump_cfg, ec_add_inplace_schrottenloher_jump_lowtof_secp256k1,
     ec_add_inplace_schrottenloher_jump_secp256k1, ec_add_inplace_schrottenloher_secp256k1_m,
 };
-use circuit_gen::ec::point_add::ec_add_inplace_shrunken_pz;
-use circuit_gen::circuit::{Cbit, Circuit, QReg};
+use trailmix::ec::point_add::ec_add_inplace_shrunken_pz;
+use trailmix::circuit::{Cbit, Circuit, QReg};
 use rand::RngCore;
 use zkp_ecc_lib::WeierstrassEllipticCurve;
 

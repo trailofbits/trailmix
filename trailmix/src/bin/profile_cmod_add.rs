@@ -1,10 +1,10 @@
 //! Measure single-call Tof cost of controlled_mod_add_pm_secp256k1
 //! and mod_double_pm_secp256k1.
 
-use circuit_gen::arith::schrottenloher::pm_prims::{
+use trailmix::arith::schrottenloher::pm_prims::{
     controlled_mod_add_pm_secp256k1, mod_double_pm_secp256k1,
 };
-use circuit_gen::circuit::Circuit;
+use trailmix::circuit::Circuit;
 
 fn main() {
     let n = 256usize;

@@ -19,7 +19,7 @@ correct phase) or the run fails. So with per-shot success `p_shot`,
 
 Scripts: `scripts/schr_param_model.py` (cost/failure model + empirical GCD/+f
 ports, every formula cited to `src/...:line`), `scripts/schr_param_search.py`
-(the sweep). Run `python3 scripts/schr_param_search.py` from `circuit_gen/`.
+(the sweep). Run `python3 scripts/schr_param_search.py` from `trailmix/`.
 The RNG is never seeded (run-to-run wobble is signal).
 
 ---

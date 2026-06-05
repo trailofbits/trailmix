@@ -7,7 +7,7 @@ operating points for one secp256k1 `P += Q`: <= 1175 logical qubits / <= 2.7M
 Toffoli (`Clow-qubit`) and <= 1425 qubits / <= 2.1M Toffoli (`Clow-gate`)
 (`papers/cryp_paper.txt`).
 
-- `circuit_gen/` -- the in-house toolchain: a reversible-circuit IR, a 64-shot
+- `trailmix/` -- the in-house toolchain: a reversible-circuit IR, a 64-shot
   parallel simulator, an abstract-interpretation phase-correctness gate, a
   spooky-pebble ghost API, a time-travel debugger, a per-section profiler, and the
   EC-add circuits themselves (secp256k1 plus Curve25519 / SM2 / Brainpool).
@@ -17,7 +17,7 @@ Toffoli (`Clow-qubit`) and <= 1425 qubits / <= 2.1M Toffoli (`Clow-gate`)
 - `papers/` -- the cited prior art (Schrottenloher, Proos-Zalka, Roetteler,
   Cuccaro, Gidney, Khattar-Gidney, the Google whitepaper).
 - `kmx_circuit_summaries.md` -- the per-circuit executive summaries;
-  `circuit_gen/notes/` -- design notes and replication status.
+  `trailmix/notes/` -- design notes and replication status.
 
 ---
 
@@ -106,7 +106,7 @@ native zkp_ecc Simulator with explicit qubit / Toffoli / op caps:
 
 `gen_and_validate_kmx.sh`:
 
-1. Emits the five EC-add `.kmx` configs into `circuit_gen/kmx_out/` (gitignored)
+1. Emits the five EC-add `.kmx` configs into `trailmix/kmx_out/` (gitignored)
    via the `emit_test_ec_add_*` binaries.
 2. Builds the zenodo `native_fuzz` tool (the SP1-guest Simulator).
 3. Runs it on each `.kmx` over 9000 Fiat-Shamir shots, asserting the circuit stays
@@ -122,10 +122,10 @@ and the fuzzer reloads its own 9000 random cases.
 
 ---
 
-## The runtime (`circuit_gen`)
+## The runtime (`trailmix`)
 
 The toolchain is implemented in-house. Full inventory with `file:line`
-references in [`circuit_gen/notes/OVERVIEW.md`](circuit_gen/notes/OVERVIEW.md); the
+references in [`trailmix/notes/OVERVIEW.md`](trailmix/notes/OVERVIEW.md); the
 highlights:
 
 - 64-shot parallel simulator, built into the builder. Each qubit is one `u64` (one
@@ -157,19 +157,19 @@ highlights:
   `CIRC_ASSERT_MAX_QUBIT_PEAK` fires the instant live qubits first cross the cap,
   and `CIRC_ASSERT_MAX_OPS` prints a per-section cost breakdown.
 
-The arithmetic primitives are organized by purpose under `circuit_gen/src/arith/`:
+The arithmetic primitives are organized by purpose under `trailmix/src/arith/`:
 `cuccaro` (ripple adders), `mcx` (multi-controlled-X), `compare`, `const_add`,
 `shift`, `khattar_gidney` (prefix-AND / increment / comparison kernel),
 `ripple_add`, `mod_arith` (modular field ops), and `schrottenloher/` (the dialog
-inversion). The EC drivers live in `circuit_gen/src/ec/`, the reversible-divstep
-inversion in `circuit_gen/src/inversion/`.
+inversion). The EC drivers live in `trailmix/src/ec/`, the reversible-divstep
+inversion in `trailmix/src/inversion/`.
 
 ---
 
 ## Building and testing
 
 ```bash
-cd circuit_gen
+cd trailmix
 # all cargo invocations go through the 8 GB memory-scoped wrapper:
 ./scripts/run_8g_scope.sh cargo build --release --lib
 ./scripts/run_8g_scope.sh cargo test  --release --lib <filter> -- --test-threads=1
@@ -178,5 +178,5 @@ cd circuit_gen
 ./scripts/run_8g_scope.sh cargo test --release --lib ec_add_inplace_shrunken_pz_random_64
 ```
 
-See [`circuit_gen/notes/OVERVIEW.md`](circuit_gen/notes/OVERVIEW.md) for the
+See [`trailmix/notes/OVERVIEW.md`](trailmix/notes/OVERVIEW.md) for the
 time-travel debugger and profiling workflow.

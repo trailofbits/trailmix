@@ -41,7 +41,7 @@ fi
 # `[package]` with a name. We just enumerate the known crates here and
 # check if any staged file is inside.
 crates=()
-for crate_dir in circuit_gen zkp_ecc_zenodo/lib zkp_ecc_zenodo/sim ub-test-program; do
+for crate_dir in trailmix zkp_ecc_zenodo/lib zkp_ecc_zenodo/sim ub-test-program; do
     if [ -f "$crate_dir/Cargo.toml" ]; then
         if printf '%s\n%s\n' "$staged_rs" "$staged_toml" \
            | { grep -q "^${crate_dir}/" || false; }; then

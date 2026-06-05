@@ -9,9 +9,9 @@
 //! each), reg2/3 = ox/oy (256 classical bits each).
 
 use alloy_primitives::U256;
-use circuit_gen::arith::schrottenloher::gcd_pack::u_padding;
-use circuit_gen::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_secp256k1_m;
-use circuit_gen::circuit::{Cbit, Circuit, QReg};
+use trailmix::arith::schrottenloher::gcd_pack::u_padding;
+use trailmix::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_secp256k1_m;
+use trailmix::circuit::{Cbit, Circuit, QReg};
 use rand::RngCore;
 use std::io::Write;
 use zkp_ecc_lib::WeierstrassEllipticCurve;

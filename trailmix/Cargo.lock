@@ -375,22 +375,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
-name = "circuit_gen"
-version = "0.1.0"
-dependencies = [
- "alloy-primitives",
- "num-bigint",
- "num-traits",
- "rand 0.8.6",
- "rkyv",
- "ruint",
- "sha2",
- "sha3 0.10.8 (git+https://github.com/sp1-patches/RustCrypto-hashes?tag=patch-sha3-0.10.8-sp1-6.0.0)",
- "tempfile",
- "zkp_ecc-lib",
-]
-
-[[package]]
 name = "const-hex"
 version = "1.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1673,6 +1657,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39ca317ebc49f06bd748bfba29533eac9485569dc9bf80b849024b025e814fb9"
 dependencies = [
  "winnow",
+]
+
+[[package]]
+name = "trailmix"
+version = "0.1.0"
+dependencies = [
+ "alloy-primitives",
+ "num-bigint",
+ "num-traits",
+ "rand 0.8.6",
+ "rkyv",
+ "ruint",
+ "sha2",
+ "sha3 0.10.8 (git+https://github.com/sp1-patches/RustCrypto-hashes?tag=patch-sha3-0.10.8-sp1-6.0.0)",
+ "tempfile",
+ "zkp_ecc-lib",
 ]
 
 [[package]]

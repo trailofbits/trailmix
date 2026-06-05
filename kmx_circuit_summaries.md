@@ -15,7 +15,7 @@ Fiat-Shamir shots.
 | shrunken-PZ | `emit_test_ec_add_shrunken_pz` | reversible Proos-Zalka divstep state machine | 1050 | ~32.3M (~100M ops) |
 
 Costs are quoted from `gen_and_validate_kmx.sh`, in-code doc-comments, and
-`circuit_gen/notes/schrottenloher_status.md`. File references point at the
+`trailmix/notes/schrottenloher_status.md`. File references point at the
 implementation; paper references give the arXiv/eprint id.
 
 ---
@@ -160,12 +160,12 @@ amortize the encoder, the GCD holds the current window decompressed and fires
 1173 qubits / ~2.484M Toffoli for the full EC-add (`pointadd.rs`;
 `gen_and_validate_kmx.sh`). The standalone inversion replicates (in-repo
 measurement) at 1191q / 2,281,568 Toffoli, below Schrottenloher's 1192q / 2,385,517
-on both axes (`circuit_gen/notes/schrottenloher_status.md`); the EC-add config measures
+on both axes (`trailmix/notes/schrottenloher_status.md`); the EC-add config measures
 1173q, under the 1175 target (`pointadd.rs`).
 
 The peak sits in `apply_bv` (Bezout reconstruction), not the GCD: the 670-bit
 (M=3) / 648-bit (M=5) garbage tape is live there alongside the 257-bit `x2` and
-`y2` registers (`670 + 514 + 7 ~ 1191`, `circuit_gen/notes/schrottenloher_status.md`).
+`y2` registers (`670 + 514 + 7 ~ 1191`, `trailmix/notes/schrottenloher_status.md`).
 Because the GCD phase runs below the peak, its controlled-subtract has full
 ancilla headroom and uses the Gidney 2n adder (`GCD_CSUB_VENTS = usize::MAX`,
 `gcd_pack.rs`), while peak-setting `apply_bv` stays on the Cuccaro 3n path
@@ -208,7 +208,7 @@ the dialog window packing and the apply_bv-peak venting.
 `gen_and_validate_kmx.sh`; the in-source test asserts `run_random_pairs(3, 222,
 1420)`, `pointadd.rs`), below Google's `Clow-gate` 1425q/2.1M on both
 axes. The trade vs config 1 is the canonical qubit<->Toffoli exchange: +~240 qubits
-buys ~-450k Toffoli (`circuit_gen/notes/quantum_resource_metrics.md`).
+buys ~-450k Toffoli (`trailmix/notes/quantum_resource_metrics.md`).
 
 The peak is still `apply_bv`, but the venting pool is now spent at that peak,
 raising it by roughly the vent budget. The pool is reused across ops, so the peak
@@ -240,7 +240,7 @@ Everything in Sec 1(d) applies; two knobs change:
    +f-reduction vents at the binding phase is an in-repo construction (see Novel
    improvements).
 
-`circuit_gen/notes/schrottenloher_status.md` records that the exact, failure-neutral
+`trailmix/notes/schrottenloher_status.md` records that the exact, failure-neutral
 Toffoli levers are exhausted at ~2.28M for M=5; further reduction requires either
 the qubit budget (wider window / venting) or relaxing the 99% / 9000-point
 reliability target. This config takes the former.
@@ -316,7 +316,7 @@ A-qB)` with `q=floor(A/B)`, and record only the coefficient of `x` (so the survi
 `a` is `x^-1`). PZ Sec 5.3.1 realizes each iteration as a flag-gated state machine;
 Sec 5.3.2 computes the quotient by base-2 long division (fewer subtractions for
 small `q`) and runs the cofactor multiply as that same long division backwards.
-The in-repo design driving this is `pz_big_step` (`circuit_gen/scripts/kaliski_test.py`,
+The in-repo design driving this is `pz_big_step` (`trailmix/scripts/kaliski_test.py`,
 a reference simulator) -- a repo design artifact, not prior art; the prior-art
 basis is Proos-Zalka.
 
@@ -352,7 +352,7 @@ The inversion is a reversible bit-by-bit pipelined divstep state machine
 (`shrunken_pz_state_machine/mod.rs`), the quantum realization of the
 Proos-Zalka extended-Euclidean inversion (PZ Sec 5). The flag-gated cycle is PZ
 Sec 5.3.1; the bit-by-bit long-division quotient (fast for small `q`) is PZ Sec 5.3.2.
-The in-repo design `pz_big_step` (`circuit_gen/scripts/kaliski_test.py`) normalizes
+The in-repo design `pz_big_step` (`trailmix/scripts/kaliski_test.py`) normalizes
 `x -> min(x, P-x)` via a sign bit, then runs divstep on `(A,B) = (P,x)` with
 cofactors `(a,b) = (0,1)`:
 
@@ -423,13 +423,13 @@ It spends ~13-17x the Toffoli of the Schrottenloher configs to reach 1050
 qubits. Almost all EC-add cost is the inversion, and a reversible divstep with an
 explicit Bennett-style reverse (two passes per inversion) is inherently
 Toffoli-heavy relative to Google's MBU-folded design. The reciprocal is the qubit
-saving (`circuit_gen/notes/quantum_resource_metrics.md`).
+saving (`trailmix/notes/quantum_resource_metrics.md`).
 
 ### (d) Component citations and the deltas layered on top
 
 | component | prior-work basis | this implementation's delta |
 |---|---|---|
-| Inversion algorithm | Proos-Zalka 2003 Sec 5 reversible extended-Euclidean / divstep inversion (`proos_zalka_2003.pdf`); flag-gated cycle = Sec 5.3.1; long-division quotient = Sec 5.3.2. In-repo design `pz_big_step` (`circuit_gen/scripts/kaliski_test.py`, not prior art). | pipelined divstep state machine with counter-free intrinsic termination -- division builds the next quotient while the multiply drains the previous (`mod.rs`) -- in-repo (PZ Sec 5.3.4 uses an explicit completion counter; see Novel improvements). |
+| Inversion algorithm | Proos-Zalka 2003 Sec 5 reversible extended-Euclidean / divstep inversion (`proos_zalka_2003.pdf`); flag-gated cycle = Sec 5.3.1; long-division quotient = Sec 5.3.2. In-repo design `pz_big_step` (`trailmix/scripts/kaliski_test.py`, not prior art). | pipelined divstep state machine with counter-free intrinsic termination -- division builds the next quotient while the multiply drains the previous (`mod.rs`) -- in-repo (PZ Sec 5.3.4 uses an explicit completion counter; see Novel improvements). |
 | Core divstep primitive | Proos-Zalka Sec 5.3.2: the cofactor multiply `a,b,q |-> a-qb,b` is the long division run backwards. | `shrunken_pz_primitives.rs`: one primitive, `long_division` forward = GCD reduce, `long_division_reverse` = consuming cofactor multiply; self-inverse, no spooky pebbling. |
 | `bitlen` / clz | Khattar-Gidney conditionally-clean log\*-ancilla streaming prefix-AND (arXiv:2407.17966, Sec 6.1) | `mod.rs`: prefix-AND ladder + gray-code bit-length deposit, ~2n Toffoli, no per-row position-equality scan -- the gray-code deposit is in-repo (see Novel improvements). |
 | Cofactor degeneracy routing | in-repo EEA invariant; cf. PZ Sec 5.3.4 one-bit `x^-1-p` garbage | `shrunken_pz_primitives.rs`: 1-bit decrement tape for the single `q_0==1` step -- in-repo (see Novel improvements). |
@@ -487,7 +487,7 @@ item 2 narrows to the in-repo buffer below.
    (density 5/3); its cited compressor sources (CFS eprint 2026/280, DQI 2510.10967)
    carry no base-3 packing either. The 5-pair generalization, its 8/5 = 1.600
    density, and the -22 peak-qubit reduction are in-repo
-   (`circuit_gen/notes/schrottenloher_status.md`): a clean M=3->M=5 generalization with a
+   (`trailmix/notes/schrottenloher_status.md`): a clean M=3->M=5 generalization with a
    new in-place radix-merge encoder, where the reference compressor is hard-coded to
    M=3 (a SAT-synthesized 6-bit -> 5-bit map, `compressor.py`). Builds on:
    Schrottenloher's 3-pair compressor.

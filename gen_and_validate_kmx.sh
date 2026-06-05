@@ -13,9 +13,9 @@
 # Run from the repo root:  ./gen_and_validate_kmx.sh
 set -euo pipefail
 
-CG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/circuit_gen" && pwd)"
+CG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/trailmix" && pwd)"
 ZENODO_DIR="$(cd "$CG_DIR/../zkp_ecc_zenodo" && pwd)"
-OUT_DIR="$CG_DIR/kmx_out"          # gitignored (see circuit_gen/.gitignore)
+OUT_DIR="$CG_DIR/kmx_out"          # gitignored (see trailmix/.gitignore)
 NUM_TESTS="${NUM_TESTS:-9000}"
 mkdir -p "$OUT_DIR"
 

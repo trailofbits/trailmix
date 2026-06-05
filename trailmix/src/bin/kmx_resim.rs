@@ -1,8 +1,8 @@
 //! Independent kmx parser + bitsliced (64-shot) simulator, using
-//! circuit_gen's OWN gate semantics. Mirrors the zenodo fuzz harness:
+//! trailmix's OWN gate semantics. Mirrors the zenodo fuzz harness:
 //!   kmx_resim <circuit.kmx>   with "a b -> c d" cases on stdin.
 //!
-//! Purpose: if circuit_gen RE-SIMULATES its own emitted kmx and gets a
+//! Purpose: if trailmix RE-SIMULATES its own emitted kmx and gets a
 //! DIFFERENT answer than its construction-time sim (the cases' expected
 //! column is the construction output), the serialization is lossy — some
 //! op's effect is applied during construction but not captured in the
@@ -377,12 +377,12 @@ fn main() {
     }
     if failures == 0 {
         println!(
-            "RESIM PASS ({} shots) — kmx round-trips faithfully under circuit_gen semantics",
+            "RESIM PASS ({} shots) — kmx round-trips faithfully under trailmix semantics",
             shots_total
         );
     } else {
         println!(
-            "RESIM FAILED ({} failures) — kmx is lossy under circuit_gen's own semantics",
+            "RESIM FAILED ({} failures) — kmx is lossy under trailmix's own semantics",
             failures
         );
     }

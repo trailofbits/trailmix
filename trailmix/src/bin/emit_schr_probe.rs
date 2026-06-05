@@ -1,25 +1,25 @@
 //! Bisection probe: fuzz an individual schrottenloher primitive against
-//! circuit_gen's OWN sim output (self-reference), so canonicalization /
-//! PM-drift is factored out and any zenodo-vs-circuit_gen divergence is a
+//! trailmix's OWN sim output (self-reference), so canonicalization /
+//! PM-drift is factored out and any zenodo-vs-trailmix divergence is a
 //! genuine kmx-fidelity bug in that primitive.
 //!
 //! WHICH=double|mul|mulrev|square|neg|add|sub (default double). The cases
-//! file's "expected" column is what circuit_gen's sim produced, NOT a math
-//! reference. So `pass` == zenodo agrees with circuit_gen on this op.
+//! file's "expected" column is what trailmix's sim produced, NOT a math
+//! reference. So `pass` == zenodo agrees with trailmix on this op.
 //!
 //! kmx -> stdout; cases -> $CASES_OUT (default /tmp/schr_probe_cases.txt).
 
-use circuit_gen::arith::schrottenloher::gcd_pack::{
+use trailmix::arith::schrottenloher::gcd_pack::{
     forward_gcd_pack_quantum_secp256k1, forward_gcd_pack_quantum_secp256k1_reverse, u_padding,
 };
-use circuit_gen::arith::schrottenloher::mod_mul_eea::{
+use trailmix::arith::schrottenloher::mod_mul_eea::{
     mod_mul_in_place_eea_secp256k1, mod_mul_in_place_eea_secp256k1_reverse,
 };
-use circuit_gen::arith::schrottenloher::pm_prims::{
+use trailmix::arith::schrottenloher::pm_prims::{
     controlled_mod_neg_pm_secp256k1, controlled_mod_square_sub_pm_secp256k1, mod_add_pm_secp256k1,
     mod_double_pm_secp256k1, mod_sub_pm_secp256k1,
 };
-use circuit_gen::circuit::{Circuit, QReg};
+use trailmix::circuit::{Circuit, QReg};
 use num_bigint::BigUint;
 use rand::{thread_rng, Rng};
 use std::io::Write;
@@ -36,7 +36,7 @@ fn load(circ: &mut Circuit, reg: &[QReg], v: &BigUint, shot: usize) {
     circ.sim_load_reg_bytes_shot(&reg[..256], &b, shot);
 }
 
-fn read256(sim: &circuit_gen::circuit::DestroyedSimState, reg: &[QReg], shot: usize) -> BigUint {
+fn read256(sim: &trailmix::circuit::DestroyedSimState, reg: &[QReg], shot: usize) -> BigUint {
     let mut v = BigUint::from(0u32);
     for i in 0..256 {
         if sim.read_bit_shot(&reg[i], shot) == 1 {
@@ -95,7 +95,7 @@ fn main() {
         "compress" => {
             // gcd_compress5 round-trip on a[0..10] (valid radix-3 input).
             // Should restore a[0..10]; embeds compare_geq_const_gidney.
-            use circuit_gen::arith::schrottenloher::gcd_compress5::{
+            use trailmix::arith::schrottenloher::gcd_compress5::{
                 compress_5iter_refs, compress_5iter_reverse_refs,
             };
             let ds: Vec<QReg> = (0..8).map(|_| circ.alloc_qreg("c5d")).collect();
@@ -113,7 +113,7 @@ fn main() {
             // Vented top-k less-than (the GCD's comparator), in isolation.
             // ctrl=a[8], target=a[9], compare a[0..8] vs b[0..8] on 8 bits.
             // a/b unchanged except a[9] ^= ctrl AND (a_top < b_top).
-            circuit_gen::arith::schrottenloher::msb_compare::controlled_lt_msbs_gidney(
+            trailmix::arith::schrottenloher::msb_compare::controlled_lt_msbs_gidney(
                 &mut circ,
                 &a[8],
                 &a[0..8],
@@ -179,7 +179,7 @@ fn main() {
 
     let kmx = circ.to_kmx();
 
-    // circuit_gen's own sim output -> self-reference expected.
+    // trailmix's own sim output -> self-reference expected.
     let (sim, detached) = circ.destroy_sim(out);
     let a_d = &detached[..total];
     let b_d = &detached[total..total + n + 1];
@@ -188,7 +188,7 @@ fn main() {
     for shot in 0..64 {
         let ao = read256(&sim, a_d, shot);
         let bo = read256(&sim, b_d, shot);
-        // input: a_in b_in   ->   output: a_out b_out  (circuit_gen sim)
+        // input: a_in b_in   ->   output: a_out b_out  (trailmix sim)
         writeln!(f, "{} {} -> {} {}", ins[shot].0, ins[shot].1, ao, bo).unwrap();
     }
     eprintln!("[probe] wrote 64 self-reference cases -> {cases_out}");

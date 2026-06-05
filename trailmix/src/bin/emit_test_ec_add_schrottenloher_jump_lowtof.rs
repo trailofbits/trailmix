@@ -1,21 +1,16 @@
-//! Emit the shrunken-PZ EC point-add as a `.kmx` for the zenodo fuzz tool, with
-//! the register layout the fuzzer expects:
-//!   reg 0 = tx[0..256]  (QUANTUM)   -- input P.x, output R.x = (P+Q).x
-//!   reg 1 = ty[0..256]  (QUANTUM)   -- input P.y, output R.y = (P+Q).y
-//!   reg 2 = ox[0..256]  (CLASSICAL) -- input Q.x, unchanged
-//!   reg 3 = oy[0..256]  (CLASSICAL) -- input Q.y, unchanged
-//!
-//! kmx -> stdout. A `P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y` case file -> $CASES_OUT
-//! (default /tmp/ec_shrunken_pz_cases.txt), N = $N_CASES (default 64) random secp
-//! points (NO schedule prefilter -- the schedule must handle random values).
-//!
-//! The op stream is input-independent (ox/oy are runtime classical controls), so we
-//! load one random 64-shot block only to satisfy the construction-time slope
-//! contracts; the fuzz tool re-loads its own cases and re-validates.
+//! Emit the Schrottenloher JUMP-GCD (jump=2) EC point-add LOW-TOF config as a
+//! `.kmx` for the zenodo fuzz tool. Same register layout as the low-qubit jump
+//! emit, but the driver uses COUPLED venting (materialize + vent the +f window,
+//! full register vents) to spend the qubit headroom up to ~1420q and push the
+//! Toffoli count below both the jump low-qubit config and the M=3 low-tof:
+//! ~1412 qubits / ~1.90M Toffoli.
+//!   reg 0 = x2[0..256] (Q) in P.x out R.x;  reg 1 = y2[0..256] (Q) in P.y out R.y
+//!   reg 2 = ox[0..256] (C) Q.x;             reg 3 = oy[0..256] (C) Q.y
 
 use alloy_primitives::U256;
-use circuit_gen::circuit::{Cbit, Circuit, QReg};
-use circuit_gen::ec::point_add::ec_add_inplace_shrunken_pz;
+use trailmix::arith::schrottenloher::gcd_pack::u_padding;
+use trailmix::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_jump_lowtof_secp256k1;
+use trailmix::circuit::{Cbit, Circuit, QReg};
 use rand::RngCore;
 use std::io::Write;
 use zkp_ecc_lib::WeierstrassEllipticCurve;
@@ -80,34 +75,42 @@ fn main() {
         .and_then(|s| s.parse().ok())
         .unwrap_or(64);
     let cases_out =
-        std::env::var("CASES_OUT").unwrap_or_else(|_| "/tmp/ec_shrunken_pz_cases.txt".into());
+        std::env::var("CASES_OUT").unwrap_or_else(|_| "/tmp/ecs_jump_lowtof_cases.txt".into());
 
     let curve = secp256k1();
     let mut rng = rand::thread_rng();
+
     let n = 256usize;
+    let total = n + u_padding(n);
+    let jump = 2usize;
 
     let mut circ = Circuit::new();
-    circ.set_max_qubit_peak(1300); // shrunken-PZ EC-add peak
-    let mut tx: Vec<QReg> = (0..n)
-        .map(|i| circ.alloc_qreg(&format!("tx[{i}]")))
+    // Jump=2 low-tof peaks ~1412 (coupled apply add); assert under the ~1420 cap.
+    circ.set_max_qubit_peak(1420);
+    let mut x2: Vec<QReg> = (0..total)
+        .map(|i| circ.alloc_qreg(&format!("x2[{i}]")))
         .collect();
-    let mut ty: Vec<QReg> = (0..n)
-        .map(|i| circ.alloc_qreg(&format!("ty[{i}]")))
-        .collect();
+    let y2: Vec<QReg> = {
+        let mut v: Vec<QReg> = (0..n)
+            .map(|i| circ.alloc_qreg(&format!("y2[{i}]")))
+            .collect();
+        v.push(circ.alloc_qreg("y2_anc"));
+        v
+    };
     let ox: Vec<Cbit> = (0..n).map(|_| circ.alloc_input_bit()).collect();
     let oy: Vec<Cbit> = (0..n).map(|_| circ.alloc_input_bit()).collect();
 
-    // Load one random 64-shot block so the construction-time slope contracts pass.
+    // Load one valid 64-shot block so construction-time contracts pass.
     for shot in 0..64 {
         let (px, py, qx, qy, _rx, _ry) = rand_case(&curve, &mut rng);
-        circ.sim_load_reg_bytes_shot(&tx[..n], &px.to_le_bytes::<32>(), shot);
-        circ.sim_load_reg_bytes_shot(&ty[..n], &py.to_le_bytes::<32>(), shot);
+        circ.sim_load_reg_bytes_shot(&x2[..n], &px.to_le_bytes::<32>(), shot);
+        circ.sim_load_reg_bytes_shot(&y2[..n], &py.to_le_bytes::<32>(), shot);
         circ.sim_load_bits_bytes_shot(&ox, &qx.to_le_bytes::<32>(), shot);
         circ.sim_load_bits_bytes_shot(&oy, &qy.to_le_bytes::<32>(), shot);
     }
 
-    eprintln!("[emit] building ec_add_inplace_shrunken_pz...");
-    ec_add_inplace_shrunken_pz(&mut circ, &mut tx, &mut ty, &ox, &oy);
+    eprintln!("[emit] building ec_add_inplace_schrottenloher_jump_lowtof (jump={jump})...");
+    ec_add_inplace_schrottenloher_jump_lowtof_secp256k1(&mut circ, &mut x2, &y2, &ox, &oy, jump);
     eprintln!(
         "[emit] built: {} ops, peak {}q, {} tof",
         circ.total_ops(),
@@ -115,13 +118,8 @@ fn main() {
         circ.executed_toffoli_shots / 64
     );
 
-    // DEFRAGMENT: the in-place divide (gcd-pair resize + dy ghost/reconstruct)
-    // migrates tx/ty's qubit ids to scattered high ids, so the registered output
-    // ids would no longer match where the input was loaded at the start. The fuzzer
-    // writes input AND reads output from the SAME ids, so restore tx/ty to their
-    // canonical contiguous ids 0..2n first. out[..n] = tx, out[n..2n] = ty.
-    let mut all: Vec<QReg> = std::mem::take(&mut tx);
-    all.extend(std::mem::take(&mut ty));
+    let mut all: Vec<QReg> = std::mem::take(&mut x2);
+    all.extend(y2);
     let out = circ.defragment(all);
 
     circ.register(0);
@@ -129,7 +127,7 @@ fn main() {
         circ.append_qreg(q, 0);
     }
     circ.register(1);
-    for q in &out[n..2 * n] {
+    for q in &out[total..total + n] {
         circ.append_qreg(q, 1);
     }
     circ.register(2);
@@ -141,7 +139,6 @@ fn main() {
         circ.append_bit(*b, 3);
     }
 
-    // Case file: "P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y" (decimal).
     let mut f = std::fs::File::create(&cases_out).expect("create cases file");
     for _ in 0..n_cases {
         let (px, py, qx, qy, rx, ry) = rand_case(&curve, &mut rng);

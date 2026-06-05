@@ -1,21 +1,21 @@
-//! Emit the Schrottenloher EC point-add as a `.kmx` for the zenodo fuzz
-//! tool, with the register layout the fuzzer expects:
-//!   reg 0 = x2[0..256]  (QUANTUM)   -- input P.x, output R.x = (P+Q).x
-//!   reg 1 = y2[0..256]  (QUANTUM)   -- input P.y, output R.y = (P+Q).y
+//! Emit the shrunken-PZ EC point-add as a `.kmx` for the zenodo fuzz tool, with
+//! the register layout the fuzzer expects:
+//!   reg 0 = tx[0..256]  (QUANTUM)   -- input P.x, output R.x = (P+Q).x
+//!   reg 1 = ty[0..256]  (QUANTUM)   -- input P.y, output R.y = (P+Q).y
 //!   reg 2 = ox[0..256]  (CLASSICAL) -- input Q.x, unchanged
 //!   reg 3 = oy[0..256]  (CLASSICAL) -- input Q.y, unchanged
 //!
 //! kmx -> stdout. A `P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y` case file -> $CASES_OUT
-//! (default /tmp/ecs_cases.txt), N = $N_CASES (default 64) random secp points.
+//! (default /tmp/ec_shrunken_pz_cases.txt), N = $N_CASES (default 64) random secp
+//! points (NO schedule prefilter -- the schedule must handle random values).
 //!
-//! The op stream is input-independent (ox/oy are runtime classical controls),
-//! so we load one valid 64-shot block only to satisfy the construction-time
-//! slope contracts; the fuzz tool re-loads its own cases and re-validates.
+//! The op stream is input-independent (ox/oy are runtime classical controls), so we
+//! load one random 64-shot block only to satisfy the construction-time slope
+//! contracts; the fuzz tool re-loads its own cases and re-validates.
 
 use alloy_primitives::U256;
-use circuit_gen::arith::schrottenloher::gcd_pack::u_padding;
-use circuit_gen::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_secp256k1;
-use circuit_gen::circuit::{Cbit, Circuit, QReg};
+use trailmix::circuit::{Cbit, Circuit, QReg};
+use trailmix::ec::point_add::ec_add_inplace_shrunken_pz;
 use rand::RngCore;
 use std::io::Write;
 use zkp_ecc_lib::WeierstrassEllipticCurve;
@@ -79,42 +79,35 @@ fn main() {
         .ok()
         .and_then(|s| s.parse().ok())
         .unwrap_or(64);
-    let cases_out = std::env::var("CASES_OUT").unwrap_or_else(|_| "/tmp/ecs_cases.txt".into());
+    let cases_out =
+        std::env::var("CASES_OUT").unwrap_or_else(|_| "/tmp/ec_shrunken_pz_cases.txt".into());
 
     let curve = secp256k1();
     let mut rng = rand::thread_rng();
-
     let n = 256usize;
-    let total = n + u_padding(n);
 
     let mut circ = Circuit::new();
-    // EC-add peaks at 1173 (apply_bv); set a tight 1178 cap here (the 2000
-    // default is only a catastrophe backstop, not a regression detector).
-    circ.set_max_qubit_peak(1178);
-    let mut x2: Vec<QReg> = (0..total)
-        .map(|i| circ.alloc_qreg(&format!("x2[{i}]")))
+    circ.set_max_qubit_peak(1300); // shrunken-PZ EC-add peak
+    let mut tx: Vec<QReg> = (0..n)
+        .map(|i| circ.alloc_qreg(&format!("tx[{i}]")))
         .collect();
-    let y2: Vec<QReg> = {
-        let mut v: Vec<QReg> = (0..n)
-            .map(|i| circ.alloc_qreg(&format!("y2[{i}]")))
-            .collect();
-        v.push(circ.alloc_qreg("y2_anc"));
-        v
-    };
+    let mut ty: Vec<QReg> = (0..n)
+        .map(|i| circ.alloc_qreg(&format!("ty[{i}]")))
+        .collect();
     let ox: Vec<Cbit> = (0..n).map(|_| circ.alloc_input_bit()).collect();
     let oy: Vec<Cbit> = (0..n).map(|_| circ.alloc_input_bit()).collect();
 
-    // Load one valid 64-shot block so construction-time contracts pass.
+    // Load one random 64-shot block so the construction-time slope contracts pass.
     for shot in 0..64 {
         let (px, py, qx, qy, _rx, _ry) = rand_case(&curve, &mut rng);
-        circ.sim_load_reg_bytes_shot(&x2[..n], &px.to_le_bytes::<32>(), shot);
-        circ.sim_load_reg_bytes_shot(&y2[..n], &py.to_le_bytes::<32>(), shot);
+        circ.sim_load_reg_bytes_shot(&tx[..n], &px.to_le_bytes::<32>(), shot);
+        circ.sim_load_reg_bytes_shot(&ty[..n], &py.to_le_bytes::<32>(), shot);
         circ.sim_load_bits_bytes_shot(&ox, &qx.to_le_bytes::<32>(), shot);
         circ.sim_load_bits_bytes_shot(&oy, &qy.to_le_bytes::<32>(), shot);
     }
 
-    eprintln!("[emit] building ec_add_inplace_schrottenloher_secp256k1...");
-    ec_add_inplace_schrottenloher_secp256k1(&mut circ, &mut x2, &y2, &ox, &oy);
+    eprintln!("[emit] building ec_add_inplace_shrunken_pz...");
+    ec_add_inplace_shrunken_pz(&mut circ, &mut tx, &mut ty, &ox, &oy);
     eprintln!(
         "[emit] built: {} ops, peak {}q, {} tof",
         circ.total_ops(),
@@ -122,24 +115,21 @@ fn main() {
         circ.executed_toffoli_shots / 64
     );
 
-    // DEFRAGMENT: the in-place mul (GCD regrow) migrates x2's qubit ids
-    // to scattered high ids, so the appended register's ids would no
-    // longer match where the circuit read its input (the START ids). The
-    // fuzzer writes input AND reads output from the SAME register ids, so
-    // we restore x2/y2 to their canonical contiguous ids 0..549 first.
-    // out[0..total] = x2 region, out[total..total+n+1] = y2 region.
-    let mut all: Vec<QReg> = std::mem::take(&mut x2);
-    all.extend(y2);
+    // DEFRAGMENT: the in-place divide (gcd-pair resize + dy ghost/reconstruct)
+    // migrates tx/ty's qubit ids to scattered high ids, so the registered output
+    // ids would no longer match where the input was loaded at the start. The fuzzer
+    // writes input AND reads output from the SAME ids, so restore tx/ty to their
+    // canonical contiguous ids 0..2n first. out[..n] = tx, out[n..2n] = ty.
+    let mut all: Vec<QReg> = std::mem::take(&mut tx);
+    all.extend(std::mem::take(&mut ty));
     let out = circ.defragment(all);
 
-    // Register layout for the fuzzer (out[..n] = x2[..256], out[total..]
-    // = y2[..256] — the same ids the input was loaded into at the start).
     circ.register(0);
     for q in &out[..n] {
         circ.append_qreg(q, 0);
     }
     circ.register(1);
-    for q in &out[total..total + n] {
+    for q in &out[n..2 * n] {
         circ.append_qreg(q, 1);
     }
     circ.register(2);
@@ -151,7 +141,7 @@ fn main() {
         circ.append_bit(*b, 3);
     }
 
-    // Write the case file: "P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y" (decimal).
+    // Case file: "P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y" (decimal).
     let mut f = std::fs::File::create(&cases_out).expect("create cases file");
     for _ in 0..n_cases {
         let (px, py, qx, qy, rx, ry) = rand_case(&curve, &mut rng);
@@ -159,12 +149,9 @@ fn main() {
     }
     eprintln!("[emit] wrote {n_cases} cases -> {cases_out}");
 
-    // kmx -> stdout.
     eprintln!("[emit] serializing kmx...");
     print!("{}", circ.to_kmx());
     eprintln!("[emit] done");
 
-    // Detach the result registers (out holds the nonzero output) so the
-    // drop-time prove_zero passes; ancillae are already |0>.
     let _ = circ.destroy_sim(out);
 }

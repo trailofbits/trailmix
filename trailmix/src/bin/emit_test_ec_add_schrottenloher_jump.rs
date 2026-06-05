@@ -10,9 +10,9 @@
 //! `P.x P.y Q.x Q.y -> R.x R.y Q.x Q.y` case file -> $CASES_OUT, N = $N_CASES.
 
 use alloy_primitives::U256;
-use circuit_gen::arith::schrottenloher::gcd_pack::u_padding;
-use circuit_gen::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_jump_secp256k1;
-use circuit_gen::circuit::{Cbit, Circuit, QReg};
+use trailmix::arith::schrottenloher::gcd_pack::u_padding;
+use trailmix::arith::schrottenloher::pointadd::ec_add_inplace_schrottenloher_jump_secp256k1;
+use trailmix::circuit::{Cbit, Circuit, QReg};
 use rand::RngCore;
 use std::io::Write;
 use zkp_ecc_lib::WeierstrassEllipticCurve;

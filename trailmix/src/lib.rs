@@ -13,7 +13,7 @@ pub mod inversion;
 pub mod tracker;
 
 // Backwards-compatible re-exports: callers still use
-// `circuit_gen::poc_arith`, `crate::mbu_primitives`, etc.
+// `trailmix::poc_arith`, `crate::mbu_primitives`, etc.
 pub use arith::{khattar_gidney, mod_arith, rfold_mbu, schrottenloher};
 pub use ec::point_add;
 pub use tracker::{debugger, phase_lattice};
