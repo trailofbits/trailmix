@@ -272,13 +272,16 @@ the Toffoli saving. The cost is one extra field per step: the dialog symbol is
 `(b0 = subtract, b0&b1 = swap, j = trailing zeros removed, 1..=jump)` rather than
 `(b0, b0&b1)`. At `jump = 1` it reproduces the divstep dialog exactly.
 
-Packing keeps that extra field cheap. The symbol is a base-5 digit (the five valid
-`(subtract, swap, s2)` combinations), and three successive windows pack into a
-7-bit code (`5^3 = 125 < 128`) via an affine digit map (0 Toffoli) plus a small
-ripple combine (~11 Toffoli/window), so the recorded shift count nets ~1 bit/step
--- less than the step reduction buys back (`circuit_gen/notes/base5_codec_finding.md`). The
-codec is an in-repo construction; its affine map and ripple-combine bound were
-found by a z3 reversible-synthesis search.
+Packing keeps that extra field affordable relative to the step reduction. The
+symbol is a base-5 digit (the five valid `(subtract, swap, s2)` combinations), and
+three successive windows pack into a 7-bit code (`5^3 = 125 < 128`). The packer
+(`compress_3sym_qrom_refs`, `gcd_compress_jump.rs`) builds the radix-5 value
+`d0 + 5*d1 + 25*d2` into a 7-bit accumulator with controlled constant-adds (the
+`*5`/`*25`, `controlled_add_const_gidney`), then clears the nine symbol bits by
+measurement-based uncomputation: each is HMR'd and its phase corrected through a
+unary-tree QROM keyed on the code (`discharge_codes`). At ~147 Toffoli/window to
+pack and ~224 to unpack (`qrom_compress_roundtrip`), the recorded transcript
+(7 bits / 3 symbols) stays well under what the jump's step reduction buys back.
 
 ### (c) Cost
 
