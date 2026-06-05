@@ -1,0 +1,14 @@
+[package]
+version = "0.0.0"
+name = "example_zkp_verify"
+edition = "2021"
+
+[[bin]]
+name = "example_zkp_verify"
+path = "example_zkp_verify.rs"
+
+[dependencies]
+clap = "4.0"
+sp1-sdk = "6.0.2"
+tokio = "1.0"
+zkp_ecc-lib = { path = "../../../lib" }

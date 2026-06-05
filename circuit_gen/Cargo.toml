@@ -1,0 +1,77 @@
+[package]
+name = "circuit_gen"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+name = "circuit_gen"
+path = "src/lib.rs"
+
+# Binaries are auto-discovered from src/bin/.
+
+[dependencies]
+zkp_ecc-lib = { path = "../zkp_ecc_zenodo/lib" }
+alloy-primitives = "1.5.5"
+rkyv = "0.8.15"
+sha2 = "0.10"
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", tag = "patch-sha3-0.10.8-sp1-6.0.0" }
+ruint = "1.17.2"
+tempfile = "3.27.0"
+num-bigint = "0.4"
+num-traits = "0.2"
+rand = "0.8"
+
+[profile.release]
+debug = true
+
+[lints.rust]
+warnings = "deny"
+
+[lints.clippy]
+# Group lower priority so the per-lint allows below override.
+all = { level = "deny", priority = -1 }
+# Bit-position loops are idiomatic in this bit-oriented codebase.
+needless_range_loop = "allow"
+# Reversible-arithmetic primitives use single-char operand names (a/b/c
+# for adder rows, q for the qubit register, s for shift amounts) matching
+# the source papers; renaming them would diverge from the math.
+many_single_char_names = "allow"
+# Paired registers intentionally differ by one character (ca/cb cofactor
+# halves, lo_a/lo_b window bounds, prom_low/prom_high) -- the a/b or low/high
+# suffix IS the distinction; clippy's edit-distance heuristic is wrong here.
+similar_names = "allow"
+# Pedantic group on, with domain-justified per-lint allows below.
+pedantic = { level = "warn", priority = -1 }
+# Qubit/bit indices are bounded far under 2^32 and every target is 64-bit, so
+# index-width casts (usize<->u32<->u64) never truncate or wrap; schedule and
+# probability math uses intentional integer<->f64 casts. Per-cast checks would
+# add noise, not safety.
+cast_possible_truncation = "allow"
+cast_precision_loss = "allow"
+cast_sign_loss = "allow"
+cast_possible_wrap = "allow"
+# Reversible circuits are emitted gate-by-gate; primitives are legitimately long.
+too_many_lines = "allow"
+# Local helper fns/consts are sometimes defined next to their first use.
+items_after_statements = "allow"
+# Error model is fail-fast assertions on preconditions already stated in the
+# function docs; a per-primitive `# Panics` section just restates them.
+missing_panics_doc = "allow"
+# Circuit primitives naturally take many wiring arguments.
+too_many_arguments = "allow"
+# Doc-formatting nits (markdown indentation) are not worth fixing
+# across the codebase — keep the list at "warn" so new ones surface
+# during local development without blocking commits.
+doc_lazy_continuation = "allow"
+doc_overindented_list_items = "allow"
+empty_line_after_doc_comments = "allow"
+# Big tuple types in the Circuit's debug logs are intentional — a
+# typedef would obscure the structure more than it helps.
+type_complexity = "allow"
+# Crypto byte literals (e.g. SECP256K1_P) group hex digits by 16-bit
+# words rather than 4-/8-bit groups; the readability loss is real.
+unusual_byte_groupings = "allow"
+# Op enum's variants differ by 1-2 u32s vs 3 u32s + tag — flagging
+# it as "large size difference" misses that the larger variants are
+# the dominant case and shrinking the others wouldn't help.
+large_enum_variant = "allow"

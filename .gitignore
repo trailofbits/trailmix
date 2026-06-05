@@ -1,0 +1,34 @@
+# Build artifacts
+**/target/
+*.kmx
+
+# SP1 artifacts
+*.elf
+proofs/
+
+# Temporary / generated
+/tmp/
+**/tmp/
+**/__pycache__/
+**/.fingerprint
+
+# Editor swapfiles
+*.swp
+*.swo
+
+# Claude Code harness / Codex markers
+circuit_gen/.claude/
+circuit_gen/.codex
+
+**/.claude/
+**/.codex/
+
+# OS / Python cruft
+.DS_Store
+*.pyc
+
+# Internal scratchpads and tool state (never ship)
+**/claude-notes.md
+circuit_gen/CLAUDE.md
+circuit_gen/src/ec/curves/PORT_PLAN.md
+*.compact-state.json

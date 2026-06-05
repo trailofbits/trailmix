@@ -1,0 +1,105 @@
+# Performs r0 ^= r2[r1] (where r2 is treated as having type bool[3][8])
+# This is a variant of the table lookup from section III.C of https://arxiv.org/abs/1805.03662
+APPEND_TO_REGISTER q0 r0
+APPEND_TO_REGISTER q1 r0
+APPEND_TO_REGISTER q2 r0
+REGISTER r0
+APPEND_TO_REGISTER q3 r1
+APPEND_TO_REGISTER q4 r1
+APPEND_TO_REGISTER q5 r1
+REGISTER r1
+APPEND_TO_REGISTER b0 r2
+APPEND_TO_REGISTER b1 r2
+APPEND_TO_REGISTER b2 r2
+APPEND_TO_REGISTER b3 r2
+APPEND_TO_REGISTER b4 r2
+APPEND_TO_REGISTER b5 r2
+APPEND_TO_REGISTER b6 r2
+APPEND_TO_REGISTER b7 r2
+APPEND_TO_REGISTER b8 r2
+APPEND_TO_REGISTER b9 r2
+APPEND_TO_REGISTER b10 r2
+APPEND_TO_REGISTER b11 r2
+APPEND_TO_REGISTER b12 r2
+APPEND_TO_REGISTER b13 r2
+APPEND_TO_REGISTER b14 r2
+APPEND_TO_REGISTER b15 r2
+APPEND_TO_REGISTER b16 r2
+APPEND_TO_REGISTER b17 r2
+APPEND_TO_REGISTER b18 r2
+APPEND_TO_REGISTER b19 r2
+APPEND_TO_REGISTER b20 r2
+APPEND_TO_REGISTER b21 r2
+APPEND_TO_REGISTER b22 r2
+APPEND_TO_REGISTER b23 r2
+REGISTER r2
+X q2
+R q6
+X q2
+X q1
+R q7
+CCX q6 q1 q7
+X q1
+X q0
+R q8
+CCX q7 q0 q8
+X q0
+CX q8 q3 if b0
+CX q8 q4 if b1
+CX q8 q5 if b2
+CX q7 q8
+CX q8 q3 if b3
+CX q8 q4 if b4
+CX q8 q5 if b5
+HMR q8 b24
+CZ q7 q0 if b24
+CX q6 q7
+X q0
+R q8
+CCX q7 q0 q8
+X q0
+CX q8 q3 if b6
+CX q8 q4 if b7
+CX q8 q5 if b8
+CX q7 q8
+CX q8 q3 if b9
+CX q8 q4 if b10
+CX q8 q5 if b11
+HMR q8 b24
+CZ q7 q0 if b24
+HMR q7 b24
+CZ q6 q1 if b24
+X q1
+R q7
+CCX q6 q1 q7
+X q1
+X q0
+R q8
+CCX q7 q0 q8
+X q0
+CX q8 q3 if b12
+CX q8 q4 if b13
+CX q8 q5 if b14
+CX q7 q8
+CX q8 q3 if b15
+CX q8 q4 if b16
+CX q8 q5 if b17
+HMR q8 b24
+CZ q7 q0 if b24
+CX q6 q7
+X q0
+R q8
+CCX q7 q0 q8
+X q0
+CX q8 q3 if b18
+CX q8 q4 if b19
+CX q8 q5 if b20
+CX q7 q8
+CX q8 q3 if b21
+CX q8 q4 if b22
+CX q8 q5 if b23
+HMR q8 b24
+CZ q7 q0 if b24
+HMR q7 b24
+CZ q6 q1 if b24
+HMR q6 b24

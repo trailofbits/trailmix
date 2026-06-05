@@ -1,0 +1,15 @@
+[package]
+version = "0.0.0"
+name = "example_zkp_fuzzer"
+edition = "2021"
+
+[[bin]]
+name = "example_zkp_fuzzer"
+path = "example_zkp_fuzzer.rs"
+
+[dependencies]
+ruint = "1.17.2"
+sha2 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha2", tag = "patch-sha2-0.10.9-sp1-6.0.0" }
+sha3 = { git = "https://github.com/sp1-patches/RustCrypto-hashes", package = "sha3", tag = "patch-sha3-0.10.8-sp1-6.0.0" }
+sp1-zkvm = "6.0.2"
+zkp_ecc-lib = { path = "../../../lib" }

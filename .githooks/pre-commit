@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# Pre-commit hook for the google-quantum-proof workspace.
+#
+# Enforces:
+#   1. `cargo build --lib` succeeds for any Rust crate touched by this
+#      commit. This catches new `unsafe` use because `lib.rs` declares
+#      `#![deny(unsafe_code)]` (with explicit per-site `#[allow]` on
+#      approved C FFI).
+#   2. `cargo clippy --all-targets -- -D warnings -D unsafe_code`
+#      passes. Crate-level `[lints]` in Cargo.toml already configures
+#      `warnings = "deny"` plus per-lint allows for stylistic noise;
+#      this CLI flag belt-and-suspenders the gate so a missing /
+#      stripped `[lints]` table can't silently re-open the door.
+#   3. `cargo geiger` is run for awareness (informational, does not
+#      gate the commit — the `deny(unsafe_code)` lint already gates).
+#
+# Install: `git config core.hooksPath .githooks` from the repo root,
+# or run `scripts/install_hooks.sh`.
+#
+# Bypass (use sparingly, e.g. for docs-only commits where Rust didn't
+# actually change but the hook detector got confused):
+#   git commit --no-verify
+# but you should fix the underlying issue rather than bypass.
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+staged_rs=$(git diff --cached --name-only --diff-filter=ACM \
+              | { grep -E '\.rs$' || true; })
+staged_toml=$(git diff --cached --name-only --diff-filter=ACM \
+                | { grep -E 'Cargo\.toml$|Cargo\.lock$' || true; })
+
+if [ -z "$staged_rs" ] && [ -z "$staged_toml" ]; then
+    exit 0
+fi
+
+# Identify Rust crate roots touched by the staged files. A crate root
+# is any directory containing a Cargo.toml that has `[lib]` or
+# `[package]` with a name. We just enumerate the known crates here and
+# check if any staged file is inside.
+crates=()
+for crate_dir in circuit_gen zkp_ecc_zenodo/lib zkp_ecc_zenodo/sim ub-test-program; do
+    if [ -f "$crate_dir/Cargo.toml" ]; then
+        if printf '%s\n%s\n' "$staged_rs" "$staged_toml" \
+           | { grep -q "^${crate_dir}/" || false; }; then
+            crates+=("$crate_dir")
+        fi
+    fi
+done
+
+if [ ${#crates[@]} -eq 0 ]; then
+    exit 0
+fi
+
+for crate in "${crates[@]}"; do
+    printf '[pre-commit] %s: cargo build --lib\n' "$crate"
+    (cd "$crate" && cargo build --release --lib --quiet)
+
+    # Gate strictly on warnings + unsafe_code. Crate-level [lints] in
+    # Cargo.toml configures the lint levels (deny warnings, allow the
+    # specific noisy stylistic ones). The CLI flags here are
+    # belt-and-suspenders so a missing / stripped [lints] table can't
+    # silently re-open the door.
+    printf '[pre-commit] %s: cargo clippy -D warnings -D unsafe_code\n' "$crate"
+    (cd "$crate" && cargo clippy --release --all-targets --quiet \
+        -- -D warnings -D unsafe_code)
+
+    if command -v cargo-geiger >/dev/null 2>&1; then
+        printf '[pre-commit] %s: cargo geiger (informational)\n' "$crate"
+        # Capture geiger output but don't fail the commit on it; the
+        # deny(unsafe_code) lint above is the actual gate. Geiger's
+        # value here is showing the count for this crate AND its
+        # dependencies, so we know if a transitive unsafe surface grew.
+        (cd "$crate" && cargo geiger --quiet 2>/dev/null \
+            | { tail -n 5 || true; }) || true
+    fi
+done
+
+printf '[pre-commit] all checks passed\n'

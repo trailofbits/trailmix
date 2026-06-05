@@ -1,0 +1,15 @@
+[package]
+version = "0.0.0"
+name = "example_zkp_prove"
+edition = "2021"
+
+[[bin]]
+name = "example_zkp_prove"
+path = "example_zkp_prove.rs"
+
+[dependencies]
+bincode = "1.3.3"
+clap = "4.0"
+sp1-sdk = "6.0.2"
+tokio = "1.0"
+zkp_ecc-lib = { path = "../../../lib" }

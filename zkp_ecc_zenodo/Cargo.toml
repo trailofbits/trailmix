@@ -1,0 +1,14 @@
+[workspace]
+members = [
+    "lib",
+    "program",
+    "prover",
+    "verifier",
+    "docs/example_tools/example_fuzz",
+    "docs/example_tools/example_sample",
+    "docs/example_tools/example_zkp_fuzzer",
+    "docs/example_tools/example_zkp_prove",
+    "docs/example_tools/example_zkp_verify",
+    "docs/example_tools/native_fuzz",
+]
+resolver = "2"
