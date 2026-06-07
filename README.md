@@ -180,3 +180,29 @@ cd trailmix
 
 See [`trailmix/notes/OVERVIEW.md`](trailmix/notes/OVERVIEW.md) for the
 time-travel debugger and profiling workflow.
+
+---
+
+## Profile visualizer
+
+`profile_viz.py` renders an interactive HTML profile of any EC-add config from
+the simulator's own per-section metrics: an occupancy envelope (live qubits over
+circuit time, colored by phase), a leaf cost landscape (Toffoli x local-peak x
+headroom -- which leaves sit *at* the qubit peak versus have room to
+measure-vent), and the peak composition (what occupies the qubit peak).
+
+```bash
+cd trailmix
+# dump one or more configs (writes kmx_out/profile_<name>.json):
+PROFILE_JSON=1 PROFILE_NAME=jump-lowqubit \
+  cargo run --release --bin profile_ec_add_schrottenloher jump
+PROFILE_JSON=1 PROFILE_NAME=low-qubit \
+  cargo run --release --bin profile_ec_add_schrottenloher 5
+# render (globs kmx_out/profile_*.json):
+cd .. && python3 profile_viz.py            # -> circuit_profiles.html
+```
+
+`PROFILE_JSON=1` adds a one-shot JSON dump to `profile_ec_add_schrottenloher`,
+reusing the simulator's existing `live_series` / `section_marks` / `section_peak`
+/ `peak_live_tags` (no circuit instrumentation, gate-neutral). `profile_viz.py`
+is stdlib-only; open the resulting HTML in any browser.

@@ -241,5 +241,63 @@ fn main() {
         );
     }
 
+    // ---- JSON dump for the profile visualizer (PROFILE_JSON=1) ----
+    if std::env::var("PROFILE_JSON").is_ok() {
+        use std::fmt::Write as _;
+        let cfg = std::env::var("PROFILE_NAME").unwrap_or_else(|_| arg1.clone());
+        let mut j = String::new();
+        let _ = write!(
+            j,
+            "{{\"config\":{:?},\"total_ops\":{},\"total_tof\":{},\"peak_qubits\":{},\"peak_at_op\":{},\"peak_section\":{:?},\n",
+            cfg, total_ops, total_tof, peak, circ.peak_at_op, circ.peak_section
+        );
+        // temporal envelope: downsample live_series to NB buckets (max-per-bucket, carry-forward)
+        const NB: usize = 2000;
+        let last_op = circ.live_series.last().map(|&(o, _)| o).unwrap_or(1).max(1);
+        let mut env = vec![0u32; NB];
+        for &(op, live) in &circ.live_series {
+            let b = (op.saturating_mul(NB - 1) / last_op).min(NB - 1);
+            if live > env[b] {
+                env[b] = live;
+            }
+        }
+        let mut carry = 0u32;
+        for v in env.iter_mut() {
+            if *v == 0 {
+                *v = carry;
+            } else {
+                carry = *v;
+            }
+        }
+        let _ = write!(j, "\"last_op\":{},\"envelope\":[", last_op);
+        for (i, v) in env.iter().enumerate() {
+            let _ = write!(j, "{}{}", v, if i + 1 < NB { "," } else { "" });
+        }
+        j.push_str("],\n\"timeline\":[");
+        for (i, (op, sec)) in circ.section_marks.iter().enumerate() {
+            let _ = write!(j, "[{},{:?}]{}", op, sec, if i + 1 < circ.section_marks.len() { "," } else { "" });
+        }
+        j.push_str("],\n\"leaves\":[");
+        for (i, (k, tof)) in rows.iter().enumerate() {
+            let lp = *leaf_localpeak.get(k).unwrap_or(&0);
+            let head = (peak as i64) - (lp as i64);
+            let kind = if is_adder(k) { "ADDER" } else { "struct" };
+            let _ = write!(
+                j,
+                "{{\"leaf\":{:?},\"tof\":{},\"local_peak\":{},\"headroom\":{},\"kind\":{:?}}}{}",
+                k, tof, lp, head, kind, if i + 1 < rows.len() { "," } else { "" }
+            );
+        }
+        j.push_str("],\n\"peak_tags\":[");
+        for (i, t) in circ.peak_live_tags.iter().enumerate() {
+            let _ = write!(j, "{:?}{}", t, if i + 1 < circ.peak_live_tags.len() { "," } else { "" });
+        }
+        j.push_str("]}\n");
+        std::fs::create_dir_all("kmx_out").ok();
+        let path = format!("kmx_out/profile_{}.json", cfg);
+        std::fs::write(&path, &j).ok();
+        eprintln!("[profile] wrote {} ({} bytes)", path, j.len());
+    }
+
     let _ = circ.destroy_sim(outs);
 }

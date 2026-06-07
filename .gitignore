@@ -11,6 +11,7 @@ proofs/
 **/tmp/
 **/__pycache__/
 **/.fingerprint
+circuit_profiles.html
 
 # Editor swapfiles
 *.swp
